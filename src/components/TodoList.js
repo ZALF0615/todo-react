@@ -12,7 +12,7 @@ const TodoList = () => {
   // 상태를 관리하는 useState 훅을 사용하여 할 일 목록과 입력값을 초기화합니다.
   const [todos, setTodos] = useState([]);
   const [input, setInput] = useState("");
-
+  
   // addTodo 함수는 입력값을 이용하여 새로운 할 일을 목록에 추가하는 함수입니다.
   const addTodo = () => {
     // 입력값이 비어있는 경우 함수를 종료합니다.
@@ -53,6 +53,30 @@ const TodoList = () => {
     );
   };
 
+  // upperTodo 함수는 할 일을 목록에서 하나 더 높은 위치로 이동시키는 함수입니다.
+  const upperTodo = (id) => {
+    const index = todos.findIndex((todo) => todo.id === id);
+  
+    if (index === 0) return;
+  
+    const task = todos[index];
+    const newTodos = [...todos.slice(0, index), ...todos.slice(index + 1)];
+
+    newTodos.splice(index - 1, 0, task);
+    setTodos(newTodos);
+  };
+
+  const lowerTodo = (id) => {
+    const index = todos.findIndex((todo) => todo.id === id);
+  
+    if (index === todos.length - 1) return;
+  
+    const task = todos[index];
+    const newTodos = [...todos.slice(0, index), ...todos.slice(index + 1)];
+
+    newTodos.splice(index + 1, 0, task);
+    setTodos(newTodos);
+  };
   // 컴포넌트를 렌더링합니다.
   return (
     <div className={styles.container}>
@@ -69,7 +93,7 @@ const TodoList = () => {
         //   padding: 5px;
         //   margin-bottom: 10px;
         // }
-        className="w-full p-1 mb-4 border border-gray-300 rounded"
+        className="shadow-lg w-full p-1 mb-4 border border-gray-300 rounded"
         value={input}
         onChange={(e) => setInput(e.target.value)}
       />
@@ -105,6 +129,8 @@ const TodoList = () => {
             todo={todo}
             onToggle={() => toggleTodo(todo.id)}
             onDelete={() => deleteTodo(todo.id)}
+            onUpper ={() => upperTodo(todo.id)}
+            onLower ={() => lowerTodo(todo.id)}
           />
         ))}
       </ul>
