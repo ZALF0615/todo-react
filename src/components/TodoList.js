@@ -32,19 +32,20 @@ const TodoList = () => {
   
   // DB에서 할 일 목록을 가져오는 함수
   const getTodos = async () => {
-    const q = query(todoCollection)
+    // const q = query(todoCollection)
     // const q = query(collection(db, "todos"), where("user", "==", user.uid));
-    // const q = query(todoCollection, orderBy("datetime", "desc"));
+    const q = query(todoCollection, orderBy("datetime", "asc"));
 
     const results = await getDocs(q);
-    console.log(results.data);
-    const newTodos = [];
 
     // 가져온 결과에서 data를 newTodos 배열에 담음
 
-    results.docs.forEach((doc)=>{
-      newTodos.push({id:doc.id, ...doc.data()});
-    });
+    const newTodos = results.docs.map((doc) => ({
+    id: doc.id,
+    text: doc.data().text,
+    completed: doc.data().completed,
+    datetime: doc.data().datetime.toDate(),
+    }));
 
     setTodos(newTodos);
   }
@@ -64,15 +65,19 @@ useEffect( () => {
     //   completed: 완료 여부,
     // }
     // ...todos => {id: 1, text: "할일1", completed: false}, {id: 2, text: "할일2", completed: false}}, ..
-    
+
     //DB에 저장할 일을 변수에 담고 DB로 넘기기
+
+    const date = new Date();
+
     const docRef = await addDoc(todoCollection,{
       text: input,
       completed: false,
+      datetime: date // dateTime
     });
-    
+
     // id를 DB id와 통일
-    setTodos([...todos, { id: docRef.id, text: input, completed: false }]);
+    setTodos([...todos, { id: docRef.id, datetime: date, text: input, completed: false }]);
     setInput("");
   };
 
