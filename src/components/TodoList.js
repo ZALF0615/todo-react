@@ -3,9 +3,26 @@
   상태 관리를 위해 `useState` 훅을 사용하여 할 일 목록과 입력값을 관리합니다.
   할 일 목록의 추가, 삭제, 완료 상태 변경 등의 기능을 구현하였습니다.
 */
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import TodoItem from "@/components/TodoItem";
 import styles from "@/styles/TodoList.module.css";
+
+// firebase 관련 모듈을 임포트
+import{ db } from "@/firebase";
+import{
+  collection,
+  query,
+  doc,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  orderBy,
+}from "firebase/firestore"
+
+// DB의 Todos 컬렉션를 참조하기 위한 변수
+
+const todoCollection = collection(db, "todos");
 
 // TodoList 컴포넌트를 정의합니다.
 const TodoList = () => {
@@ -13,8 +30,31 @@ const TodoList = () => {
   const [todos, setTodos] = useState([]);
   const [input, setInput] = useState("");
   
+  // DB에서 할 일 목록을 가져오는 함수
+  const getTodos = async () => {
+    const q = query(todoCollection)
+    // const q = query(collection(db, "todos"), where("user", "==", user.uid));
+    // const q = query(todoCollection, orderBy("datetime", "desc"));
+
+    const results = await getDocs(q);
+    console.log(results.data);
+    const newTodos = [];
+
+    // 가져온 결과에서 data를 newTodos 배열에 담음
+
+    results.docs.forEach((doc)=>{
+      newTodos.push({id:doc.id, ...doc.data()});
+    });
+
+    setTodos(newTodos);
+  }
+
+useEffect( () => {
+  getTodos();
+},[]);
+
   // addTodo 함수는 입력값을 이용하여 새로운 할 일을 목록에 추가하는 함수입니다.
-  const addTodo = () => {
+  const addTodo = async () => {
     // 입력값이 비어있는 경우 함수를 종료합니다.
     if (input.trim() === "") return;
     // 기존 할 일 목록에 새로운 할 일을 추가하고, 입력값을 초기화합니다.
@@ -24,27 +64,44 @@ const TodoList = () => {
     //   completed: 완료 여부,
     // }
     // ...todos => {id: 1, text: "할일1", completed: false}, {id: 2, text: "할일2", completed: false}}, ..
-    setTodos([...todos, { id: Date.now(), text: input, completed: false }]);
+    
+    //DB에 저장할 일을 변수에 담고 DB로 넘기기
+    const docRef = await addDoc(todoCollection,{
+      text: input,
+      completed: false,
+    });
+    
+    // id를 DB id와 통일
+    setTodos([...todos, { id: docRef.id, text: input, completed: false }]);
     setInput("");
   };
 
   // toggleTodo 함수는 체크박스를 눌러 할 일의 완료 상태를 변경하는 함수입니다.
   const toggleTodo = (id) => {
     // 할 일 목록에서 해당 id를 가진 할 일의 완료 상태를 반전시킵니다.
-    setTodos(
-      // todos.map((todo) =>
-      //   todo.id === id ? { ...todo, completed: !todo.completed } : todo
-      // )
-      // ...todo => id: 1, text: "할일1", completed: false
-      todos.map((todo) => {
-        return todo.id === id ? { ...todo, completed: !todo.completed } : todo;
-      })
-    );
+    const newTodos = todos.map((todo)=>{
+      if(todo.id === id){
+        // 해당하는 id를 가진 일의 상태를 업데이트
+        const todoDoc = doc(todoCollection, id);
+        updateDoc(todoDoc, {completed: !todo.completed});
+        return {...todo, completed: !todo.completed };
+      }else{
+        return todo;
+      }
+      
+    });
+    
+    // 변경한 newTodos를 set
+    setTodos(newTodos);
   };
 
   // deleteTodo 함수는 할 일을 목록에서 삭제하는 함수입니다.
   const deleteTodo = (id) => {
     // 해당 id를 가진 할 일을 제외한 나머지 목록을 새로운 상태로 저장합니다.
+
+    const todoDoc = doc(todoCollection, id);
+    deleteDoc(todoDoc);
+
     // setTodos(todos.filter((todo) => todo.id !== id));
     setTodos(
       todos.filter((todo) => {
