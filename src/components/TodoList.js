@@ -4,6 +4,8 @@
   할 일 목록의 추가, 삭제, 완료 상태 변경 등의 기능을 구현하였습니다.
 */
 import React, { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+
 import TodoItem from "@/components/TodoItem";
 import styles from "@/styles/TodoList.module.css";
 
@@ -18,6 +20,7 @@ import{
   updateDoc,
   deleteDoc,
   orderBy,
+  where,
 }from "firebase/firestore"
 
 // DB의 Todos 컬렉션를 참조하기 위한 변수
@@ -30,11 +33,19 @@ const TodoList = () => {
   const [todos, setTodos] = useState([]);
   const [input, setInput] = useState("");
   
+  const { data }=useSession();
   // DB에서 할 일 목록을 가져오는 함수
   const getTodos = async () => {
     // const q = query(todoCollection)
     // const q = query(collection(db, "todos"), where("user", "==", user.uid));
-    const q = query(todoCollection, orderBy("datetime", "asc"));
+    // const q = query(todoCollection, orderBy("datetime", "asc"));
+    if(!data?.user?.name) return;
+
+    const q = query(
+      todoCollection,
+      where("userId", "==", data?.user?.id),
+      orderBy("datetime", "asc")
+    );
 
     const results = await getDocs(q);
 
@@ -52,7 +63,7 @@ const TodoList = () => {
 
 useEffect( () => {
   getTodos();
-},[]);
+},[data]);
 
   // addTodo 함수는 입력값을 이용하여 새로운 할 일을 목록에 추가하는 함수입니다.
   const addTodo = async () => {
@@ -71,6 +82,7 @@ useEffect( () => {
     const date = new Date();
 
     const docRef = await addDoc(todoCollection,{
+      userId: data?.user?.id,
       text: input,
       completed: false,
       datetime: date // dateTime
@@ -143,7 +155,7 @@ useEffect( () => {
   return (
     <div className={styles.container}>
       <h1 className="text-xl mb-4 font-bold underline underline-offset-4 decoration-wavy">
-        Todo List
+        {data?.user?.name}'s Todo List
       </h1>
       {/* 할 일을 입력받는 텍스트 필드입니다. */}
       <input
