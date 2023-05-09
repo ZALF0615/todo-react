@@ -11,8 +11,6 @@ import styles from "@/styles/TodoList.module.css";
 const TodoItem = ({ todo, onToggle, onDelete, onUpper, onLower}) => {
 
   const dateString = todo.datetime.toLocaleString();
-  console.log("nonon : " + todo.datetime);
-  console.log("popop : " + dateString);
   // 각 할 일 항목을 렌더링합니다.
   return (
     <li className={styles.todoItem}>

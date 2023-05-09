@@ -41,11 +41,14 @@ const TodoList = () => {
     // const q = query(todoCollection, orderBy("datetime", "asc"));
     if(!data?.user?.name) return;
 
+    const admin_id = "2781684898" // 임시, 추후에 사이트 내에서 이 값을 받아올 수 있도록 수정
+
     const q = query(
       todoCollection,
-      where("userId", "==", data?.user?.id),
-      orderBy("datetime", "asc")
+      data?.user?.id === admin_id ? {} : where("userId", "==", data?.user?.id),
+      orderBy("datetime", "asc")      
     );
+    console.log("adminid = " + data?.user?.id);
 
     const results = await getDocs(q);
 
