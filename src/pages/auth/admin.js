@@ -42,6 +42,7 @@ export default function Admin() {
         } else {
           // 검색 결과 문서의 개수가 0인 경우 새로운 문서를 추가합니다.
           await addDoc(adminCollection, { userId: data?.user?.id });
+          alert("admin regintered");
           router.push("/");
         }
       } else {

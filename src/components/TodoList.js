@@ -71,20 +71,19 @@ const TodoList = () => {
     setTodos(newTodos);
   }
 
+  const checkAdmin = async () => {
+    if(!data?.user?.name) return;
+
+    const q = query(adminCollection, where("userId", "==", data?.user?.id));
+    const result = await getDocs(q);
+    if(result.size > 0){
+      setIsAdmin(true);
+    } else {
+      setIsAdmin(false);
+    }
+  }
+
   useEffect(() => {
-    const checkAdmin = async () => {
-      if (data?.user?.id) {
-        const adminRef = doc(adminCollection, data.user.id);
-        const adminDoc = await getDoc(adminRef);
-  
-        if (adminDoc.exists) {
-          setIsAdmin(true);
-        } else {
-          setIsAdmin(false);
-        }
-      }
-    };
-  
     checkAdmin();
     getTodos();
   }, [data, isAdmin]);
