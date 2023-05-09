@@ -32,6 +32,12 @@ export default function Signin() {
           >
             Sign out
           </button>
+          <button
+          className="absolute bottom-4 right-4 px-3 py-1 bg-blue-500 text-white border border-blue-500 rounded hover:bg-white hover:text-blue-500"
+          onClick={() => router.push("/auth/admin")}
+          >
+            Admin 등록
+          </button>
         </div>
       ) : (
         <div className="grid m-auto text-center">

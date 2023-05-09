@@ -4,7 +4,8 @@
   할 일 목록의 추가, 삭제, 완료 상태 변경 등의 기능을 구현하였습니다.
 */
 import React, { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut} from "next-auth/react";
+import { useRouter } from "next/router";
 
 import TodoItem from "@/components/TodoItem";
 import styles from "@/styles/TodoList.module.css";
@@ -16,6 +17,7 @@ import{
   query,
   doc,
   getDocs,
+  getDoc,
   addDoc,
   updateDoc,
   deleteDoc,
@@ -26,13 +28,17 @@ import{
 // DB의 Todos 컬렉션를 참조하기 위한 변수
 
 const todoCollection = collection(db, "todos");
+const adminCollection = collection(db, "admin_ids");
 
 // TodoList 컴포넌트를 정의합니다.
 const TodoList = () => {
   // 상태를 관리하는 useState 훅을 사용하여 할 일 목록과 입력값을 초기화합니다.
   const [todos, setTodos] = useState([]);
   const [input, setInput] = useState("");
-  
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const router = useRouter();
+
   const { data }=useSession();
   // DB에서 할 일 목록을 가져오는 함수
   const getTodos = async () => {
@@ -41,14 +47,13 @@ const TodoList = () => {
     // const q = query(todoCollection, orderBy("datetime", "asc"));
     if(!data?.user?.name) return;
 
-    const admin_id = "2781684898" // 임시, 추후에 사이트 내에서 이 값을 받아올 수 있도록 수정
-
     const q = query(
       todoCollection,
-      data?.user?.id === admin_id ? {} : where("userId", "==", data?.user?.id),
+      isAdmin ? {} : where("userId", "==", data?.user?.id),
       orderBy("datetime", "asc")      
     );
     console.log("adminid = " + data?.user?.id);
+    console.log("isAdmin = " + isAdmin);
 
     const results = await getDocs(q);
 
@@ -56,6 +61,8 @@ const TodoList = () => {
 
     const newTodos = results.docs.map((doc) => ({
     id: doc.id,
+    userId: doc.data().userId,
+    username: doc.data().username,
     text: doc.data().text,
     completed: doc.data().completed,
     datetime: doc.data().datetime.toDate(),
@@ -64,9 +71,24 @@ const TodoList = () => {
     setTodos(newTodos);
   }
 
-useEffect( () => {
-  getTodos();
-},[data]);
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (data?.user?.id) {
+        const adminRef = doc(adminCollection, data.user.id);
+        const adminDoc = await getDoc(adminRef);
+  
+        if (adminDoc.exists) {
+          setIsAdmin(true);
+        } else {
+          setIsAdmin(false);
+        }
+      }
+    };
+  
+    checkAdmin();
+    getTodos();
+  }, [data, isAdmin]);
+  
 
   // addTodo 함수는 입력값을 이용하여 새로운 할 일을 목록에 추가하는 함수입니다.
   const addTodo = async () => {
@@ -86,19 +108,26 @@ useEffect( () => {
 
     const docRef = await addDoc(todoCollection,{
       userId: data?.user?.id,
+      username: data?.user?.name,
       text: input,
       completed: false,
       datetime: date // dateTime
     });
 
     // id를 DB id와 통일
-    setTodos([...todos, { id: docRef.id, datetime: date, text: input, completed: false }]);
+    setTodos([...todos, { id: docRef.id, userId: data?.user?.id, username: data?.user?.name, datetime: date, text: input, completed: false }]);
     setInput("");
   };
 
   // toggleTodo 함수는 체크박스를 눌러 할 일의 완료 상태를 변경하는 함수입니다.
   const toggleTodo = (id) => {
     // 할 일 목록에서 해당 id를 가진 할 일의 완료 상태를 반전시킵니다.
+
+    if(todos.find((todo) => todo.id == id).userId !== data?.user?.id) { // 자신이 등록한 할 일이 아니면 함수 종료
+      alert("자신이 등록하지 않은 할 일은 수정 및 삭제할 수 없습니다.");
+      return;
+    }
+
     const newTodos = todos.map((todo)=>{
       if(todo.id === id){
         // 해당하는 id를 가진 일의 상태를 업데이트
@@ -118,7 +147,11 @@ useEffect( () => {
   // deleteTodo 함수는 할 일을 목록에서 삭제하는 함수입니다.
   const deleteTodo = (id) => {
     // 해당 id를 가진 할 일을 제외한 나머지 목록을 새로운 상태로 저장합니다.
-
+    if(todos.find((todo) => todo.id == id).userId !== data?.user?.id) { // 자신이 등록한 할 일이 아니면 함수 종료
+      
+      alert("자신이 등록하지 않은 할 일은 수정 및 삭제할 수 없습니다.");
+      return;
+    }
     const todoDoc = doc(todoCollection, id);
     deleteDoc(todoDoc);
 
@@ -157,6 +190,15 @@ useEffect( () => {
   // 컴포넌트를 렌더링합니다.
   return (
     <div className={styles.container}>
+      {/* 로그아웃 버튼 추가 */}
+      <button
+        onClick={() => {
+          signOut();
+          router.push('/auth/signin');
+        }}
+        className="absolute top-4 left-4 px-3 py-1 bg-white text-blue-500 border border-blue-500 rounded hover:bg-blue-500 hover:text-white">
+        Sign Out
+      </button>
       <h1 className="text-xl mb-4 font-bold underline underline-offset-4 decoration-wavy">
         {data?.user?.name}'s Todo List
       </h1>
@@ -203,6 +245,7 @@ useEffect( () => {
         {todos.map((todo) => (
           <TodoItem
             key={todo.id}
+            isAdmin={isAdmin}
             todo={todo}
             onToggle={() => toggleTodo(todo.id)}
             onDelete={() => deleteTodo(todo.id)}
@@ -211,6 +254,9 @@ useEffect( () => {
           />
         ))}
       </ul>
+      <span className="absolute bottom-4 right-4 px-3 py-1">
+        {isAdmin ? "Admin mode" : ""}
+      </span>
     </div>
   );
 };
